@@ -103,10 +103,10 @@ function App() {
         Plot.line(waterlevelData?.values, {x: "x", y: "z", stroke: "green"}),
         Plot.dot(waterlevelData?.values, { x: "x", y: "z", r: 6, fill: "green", stroke: "green"}),
         Plot.rect(wellsData, {
-          x1: (d => d.x - 0.5),
-          x2: (d => d.x + 0.5),
-          y1: (d => d.min_z),
-          y2: (d => d.max_z),
+          x1: ((d:Well) => d.x - 0.5),
+          x2: (d:Well) => d.x + 0.5,
+          y1: (d:Well) => d.min_z,
+          y2: (d:Well) => d.max_z,
           stroke: "black",
           fillOpacity: 0.1,
           fill: "blue"
