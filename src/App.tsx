@@ -42,16 +42,15 @@ function App() {
       console.log('no more waterlevel data')
       return 
     }
-    setWaterlevelIndex(waterlevelIndex - 1)
+    setWaterlevelIndex(waterlevelIndex - 12)
   }
   
   function incrementWaterlevelKey() {
-    console.log('incrementWaterlevelKey', waterlevelIndex)
     if (waterlevelIndex === waterlevelsData?.length) { 
       console.log('no more waterlevel data')
       return 
     }
-    setWaterlevelIndex(waterlevelIndex + 1)
+    setWaterlevelIndex(waterlevelIndex + 12)
   }
 
   function startAnimation() {
