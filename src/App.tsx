@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef} from 'react'
 import { useLoadJSON } from './hooks/useLoadJson'
 import * as Plot from "@observablehq/plot"
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import * as d3 from "d3"
+// import * as d3 from "d3"
 
 import './App.css'
 
@@ -147,6 +146,7 @@ function App() {
       <button onClick={incrementWaterlevelKey}>Next</button>
       <button onClick={startAnimation}>Start</button>
       <button onClick={stopAnimation}>Stop</button>
+      <button onClick={() => setFilePrefix(filePrefixes[0])}>Change Profile</button>
     </div>      
     </>
   )
