@@ -29,12 +29,15 @@ interface WaterLevel {
   values: WaterLevelEntry[]
 }
 
-const filePrefixes = ['xs1', 'xs2']
+const filePrefixes = [
+  { label: 'Lower Trout XS1', value: 'xs1' },
+  { label: 'Lower Trout XS2', value: 'xs2' }
+]
 
 function App() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [filePrefix, setFilePrefix] = useState(filePrefixes[0])
+  const [filePrefix, setFilePrefix] = useState(filePrefixes[0].value)
   const [waterlevelIndex, setWaterlevelIndex] = useState(0)
   const [intervalId, setIntervalId] = useState<number>()
 
@@ -136,17 +139,27 @@ function App() {
     <>
     <div ref={containerRef} />
 
-    <p>Profile: {filePrefix}</p>
-    <p>{wellsData.length} wells</p>
-    <p>{elevationsData.length} survey stations</p>
-    <p>{waterlevelsData.length} water level measurements</p>
-    <p>Measurement datetime: {waterlevelsData[waterlevelIndex]?.label}</p>
+    {/* <p>Profile: {filePrefix}</p> */}
+    <div>
+      <p>
+        {wellsData.length} wells, {elevationsData.length} survey stations, and {waterlevelsData.length.toLocaleString()} water level measurements ranging from {waterlevelsData[0]?.label} to {waterlevelsData[waterlevelsData.length -1]?.label}
+      </p>
+    </div>
+    <div className='card'>
+      <p>Active Datetime: {waterlevelsData[waterlevelIndex]?.label}</p>
+    </div>
     <div className="card">
       <button onClick={decrementWaterlevelKey}>Previous</button>
       <button onClick={incrementWaterlevelKey}>Next</button>
       <button onClick={startAnimation}>Start</button>
       <button onClick={stopAnimation}>Stop</button>
-      <button onClick={() => setFilePrefix(filePrefixes[0])}>Change Profile</button>
+      <select value={filePrefix} onChange={(e) => setFilePrefix(e.target.value)}>
+        {filePrefixes.map((prefix) => (
+          <option key={prefix.value} value={prefix.value}>
+            {prefix.label}
+          </option>
+        ))}
+      </select>
     </div>      
     </>
   )
