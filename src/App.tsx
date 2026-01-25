@@ -63,7 +63,7 @@ function App() {
       return
     }
     console.log('starting animation')
-    setIntervalId(setInterval(()=>{setWaterlevelIndex(waterlevelIndex => waterlevelIndex + 1)}, 250))
+    setIntervalId(setInterval(()=>{setWaterlevelIndex(waterlevelIndex => waterlevelIndex + 1)}, 100))
   }
 
   function stopAnimation() {
