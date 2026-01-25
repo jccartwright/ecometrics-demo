@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef} from 'react'
 import { useLoadJSON } from './hooks/useLoadJson'
 import * as Plot from "@observablehq/plot"
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import * as d3 from "d3"
 
 import './App.css'
@@ -33,6 +34,7 @@ const filePrefixes = ['xs1', 'xs2']
 
 function App() {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [filePrefix, setFilePrefix] = useState(filePrefixes[0])
   const [waterlevelIndex, setWaterlevelIndex] = useState(0)
   const [intervalId, setIntervalId] = useState<number>()
