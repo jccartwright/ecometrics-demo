@@ -41,21 +41,21 @@ function App() {
   const [waterlevelIndex, setWaterlevelIndex] = useState(0)
   const [intervalId, setIntervalId] = useState<number>()
 
-  function decrementWaterlevelKey() {
-    if (waterlevelIndex === 0) { 
-      console.log('no more waterlevel data')
-      return 
-    }
-    setWaterlevelIndex(waterlevelIndex - 12)
-  }
+  // function decrementWaterlevelKey() {
+  //   if (waterlevelIndex === 0) { 
+  //     console.log('no more waterlevel data')
+  //     return 
+  //   }
+  //   setWaterlevelIndex(waterlevelIndex - 12)
+  // }
   
-  function incrementWaterlevelKey() {
-    if (waterlevelIndex === waterlevelsData?.length) { 
-      console.log('no more waterlevel data')
-      return 
-    }
-    setWaterlevelIndex(waterlevelIndex + 12)
-  }
+  // function incrementWaterlevelKey() {
+  //   if (waterlevelIndex === waterlevelsData?.length) { 
+  //     console.log('no more waterlevel data')
+  //     return 
+  //   }
+  //   setWaterlevelIndex(waterlevelIndex + 12)
+  // }
 
   function testme() {
     if (waterlevelsData && waterlevelIndex == (waterlevelsData.length - 1)) {
