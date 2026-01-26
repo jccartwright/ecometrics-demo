@@ -4,6 +4,7 @@ import * as Plot from "@observablehq/plot"
 // import * as d3 from "d3"
 
 import './App.css'
+import NavButtonPanel from './components/nav-button-panel'
 
 
 interface Well {
@@ -36,7 +37,6 @@ const filePrefixes = [
 
 function App() {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [filePrefix, setFilePrefix] = useState(filePrefixes[0].value)
   const [waterlevelIndex, setWaterlevelIndex] = useState(0)
   const [intervalId, setIntervalId] = useState<number>()
@@ -57,13 +57,22 @@ function App() {
     setWaterlevelIndex(waterlevelIndex + 12)
   }
 
+  function testme() {
+    if (waterlevelsData && waterlevelIndex == (waterlevelsData.length - 1)) {
+      console.log('no more waterlevel data')
+      stopAnimation()
+      return
+    }
+    setWaterlevelIndex(waterlevelIndex => waterlevelIndex + 1)
+  }
+
   function startAnimation() {
     if (intervalId) {
       console.log('animation already running')
       return
     }
     console.log('starting animation')
-    setIntervalId(setInterval(()=>{setWaterlevelIndex(waterlevelIndex => waterlevelIndex + 1)}, 100))
+    setIntervalId(setInterval(()=>testme(), 10))
   }
 
   function stopAnimation() {
@@ -72,6 +81,11 @@ function App() {
       clearInterval(intervalId)
       setIntervalId(undefined)
     }
+  }
+
+  function timestepChangeHandler(event: React.ChangeEvent<HTMLInputElement>) {
+    setWaterlevelIndex(event.target.valueAsNumber);
+    
   }
 
   // expects file in public folder
@@ -149,8 +163,8 @@ function App() {
       <p>Active Datetime: {waterlevelsData[waterlevelIndex]?.label}</p>
     </div>
     <div className="card">
-      <button onClick={decrementWaterlevelKey}>Previous</button>
-      <button onClick={incrementWaterlevelKey}>Next</button>
+      {/* <button onClick={decrementWaterlevelKey}>Previous</button>
+      <button onClick={incrementWaterlevelKey}>Next</button> */}
       <button onClick={startAnimation}>Start</button>
       <button onClick={stopAnimation}>Stop</button>
       <select value={filePrefix} onChange={(e) => setFilePrefix(e.target.value)}>
@@ -160,7 +174,13 @@ function App() {
           </option>
         ))}
       </select>
-    </div>      
+    </div>
+    <div style={{marginTop: "20px"}}>
+      <label htmlFor={"price-range"}>Select a time step (0 to {waterlevelsData.length - 1}):</label></div>
+      <input style={{width: "500px"}} onChange={timestepChangeHandler} type="range" id="price-range" name="price-range" min="0" max={waterlevelsData.length-1} value={waterlevelIndex}/>
+    <div>
+    <NavButtonPanel waterlevelIndex={waterlevelIndex} setWaterlevelIndex={setWaterlevelIndex} maxIndex={waterlevelsData.length - 1} />
+    </div>
     </>
   )
 }
