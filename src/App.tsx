@@ -30,14 +30,19 @@ interface WaterLevel {
   values: WaterLevelEntry[]
 }
 
-const filePrefixes = [
-  { label: 'Lower Trout XS1', value: 'xs1' },
-  { label: 'Lower Trout XS2', value: 'xs2' }
+interface DataFile {
+  label: string
+  value: string
+}
+
+const dataFiles = [
+  { label: 'Lower Trout XS1', value: 'test-data/xs1' },
+  { label: 'Lower Trout XS2', value: 'test-data/xs2' }
 ]
 
 function App() {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [filePrefix, setFilePrefix] = useState(filePrefixes[0].value)
+  const [filePrefix, setFilePrefix] = useState(dataFiles[0].value)
   const [waterlevelIndex, setWaterlevelIndex] = useState(0)
   const [intervalId, setIntervalId] = useState<number>()
 
@@ -92,6 +97,8 @@ function App() {
   const { data:wellsData, loading:wellsLoading, error:wellsError } = useLoadJSON<Well[]>(`${filePrefix}_wells.json`)
   const { data:elevationsData, loading:elevationsLoading, error:elevationsError } = useLoadJSON<Elevation[]>(`${filePrefix}_elevations.json`)
   const { data:waterlevelsData, loading:waterlevelsLoading, error:waterlevelsError } = useLoadJSON<WaterLevel[]>(`${filePrefix}_waterlevels.json`)
+  const { data:myDataFiles, loading: dataFilesLoading, error: dataFilesError } = useLoadJSON<string[]>(`input_files.json`)
+  console.log({myDataFiles})
 
   useEffect(() => {
     if (!waterlevelsData) {
@@ -147,8 +154,8 @@ function App() {
 
   if (wellsLoading || elevationsLoading || waterlevelsLoading) return <div>Loading data...</div>
   if (wellsError || elevationsError || waterlevelsError) return <div>Error loading data</div>
-  if (!(wellsData && elevationsData && waterlevelsData)) return null // no data in files - should not happen
-
+  if (!(wellsData && elevationsData && waterlevelsData )) return null // no data in files - should not happen
+  console.log({dataFiles})
   return (
     <>
     <div ref={containerRef} />
@@ -168,9 +175,9 @@ function App() {
       <button onClick={startAnimation}>Start</button>
       <button onClick={stopAnimation}>Stop</button>
       <select value={filePrefix} onChange={(e) => setFilePrefix(e.target.value)}>
-        {filePrefixes.map((prefix) => (
-          <option key={prefix.value} value={prefix.value}>
-            {prefix.label}
+        {myDataFiles?.map((file) => (
+          <option key={file} value={file}>
+            {file}
           </option>
         ))}
       </select>
@@ -179,7 +186,7 @@ function App() {
       <label htmlFor={"price-range"}>Select a time step (0 to {waterlevelsData.length - 1}):</label></div>
       <input style={{width: "500px"}} onChange={timestepChangeHandler} type="range" id="price-range" name="price-range" min="0" max={waterlevelsData.length-1} value={waterlevelIndex}/>
     <div>
-    <NavButtonPanel waterlevelIndex={waterlevelIndex} setWaterlevelIndex={setWaterlevelIndex} maxIndex={waterlevelsData.length - 1} />
+    {/* <NavButtonPanel waterlevelIndex={waterlevelIndex} setWaterlevelIndex={setWaterlevelIndex} maxIndex={waterlevelsData.length - 1} /> */}
     </div>
     </>
   )
