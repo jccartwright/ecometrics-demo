@@ -4,7 +4,7 @@ import * as Plot from "@observablehq/plot"
 // import * as d3 from "d3"
 
 import './App.css'
-import NavButtonPanel from './components/nav-button-panel'
+// import NavButtonPanel from './components/nav-button-panel'
 
 
 interface Well {
@@ -28,11 +28,6 @@ interface WaterLevelEntry {
 interface WaterLevel {
   label: string
   values: WaterLevelEntry[]
-}
-
-interface DataFile {
-  label: string
-  value: string
 }
 
 const dataFiles = [
@@ -152,10 +147,10 @@ function App() {
     return () => plot.remove();
   }, [wellsData, elevationsData, waterlevelsData, waterlevelIndex]);
 
-  if (wellsLoading || elevationsLoading || waterlevelsLoading) return <div>Loading data...</div>
-  if (wellsError || elevationsError || waterlevelsError) return <div>Error loading data</div>
+  if (wellsLoading || elevationsLoading || waterlevelsLoading || dataFilesLoading) return <div>Loading data...</div>
+  if (wellsError || elevationsError || waterlevelsError || dataFilesError) return <div>Error loading data</div>
   if (!(wellsData && elevationsData && waterlevelsData )) return null // no data in files - should not happen
-  console.log({dataFiles})
+  
   return (
     <>
     <div ref={containerRef} />
