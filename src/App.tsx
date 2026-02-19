@@ -2,6 +2,7 @@ import { useState, useEffect, useRef} from 'react'
 import { useLoadJSON } from './hooks/useLoadJson'
 import * as Plot from "@observablehq/plot"
 // import * as d3 from "d3"
+import filePrefixes from './input_files.json'
 
 import './App.css'
 // import NavButtonPanel from './components/nav-button-panel'
@@ -12,6 +13,8 @@ interface Well {
     x: number
     min_z: number
     max_z: number
+    surface: number
+    sensor: number
   }
 
 interface Elevation {
@@ -30,86 +33,58 @@ interface WaterLevel {
   values: WaterLevelEntry[]
 }
 
-const dataFiles = [
-  { label: 'Lower Trout XS1', value: 'test-data/xs1' },
-  { label: 'Lower Trout XS2', value: 'test-data/xs2' }
-]
 
 function App() {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [filePrefix, setFilePrefix] = useState(dataFiles[0].value)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  // useRef instead of simple variable to avoid a dependency in the useEffect controlling the animation
+  const maxIndexRef = useRef<number>(0)
+  const [filePrefix, setFilePrefix] = useState(filePrefixes[0])
   const [waterlevelIndex, setWaterlevelIndex] = useState(0)
-  const [intervalId, setIntervalId] = useState<number>()
-
-  // function decrementWaterlevelKey() {
-  //   if (waterlevelIndex === 0) { 
-  //     console.log('no more waterlevel data')
-  //     return 
-  //   }
-  //   setWaterlevelIndex(waterlevelIndex - 12)
-  // }
-  
-  // function incrementWaterlevelKey() {
-  //   if (waterlevelIndex === waterlevelsData?.length) { 
-  //     console.log('no more waterlevel data')
-  //     return 
-  //   }
-  //   setWaterlevelIndex(waterlevelIndex + 12)
-  // }
-
-  function testme() {
-    if (waterlevelsData && waterlevelIndex == (waterlevelsData.length - 1)) {
-      console.log('no more waterlevel data')
-      stopAnimation()
-      return
-    }
-    setWaterlevelIndex(waterlevelIndex => waterlevelIndex + 1)
-  }
-
-  function startAnimation() {
-    if (intervalId) {
-      console.log('animation already running')
-      return
-    }
-    console.log('starting animation')
-    setIntervalId(setInterval(()=>testme(), 10))
-  }
-
-  function stopAnimation() {
-    if (intervalId) {
-      console.log('stopping animation')
-      clearInterval(intervalId)
-      setIntervalId(undefined)
-    }
-  }
+  const [running, setRunning] = useState(false)
+  // console.log('rendering App with waterlevelIndex', waterlevelIndex, 'and filePrefix', filePrefix)
 
   function timestepChangeHandler(event: React.ChangeEvent<HTMLInputElement>) {
-    setWaterlevelIndex(event.target.valueAsNumber);
-    
+    setWaterlevelIndex(event.target.valueAsNumber);  
   }
 
   // expects file in public folder
-  const { data:wellsData, loading:wellsLoading, error:wellsError } = useLoadJSON<Well[]>(`${filePrefix}_wells.json`)
-  const { data:elevationsData, loading:elevationsLoading, error:elevationsError } = useLoadJSON<Elevation[]>(`${filePrefix}_elevations.json`)
-  const { data:waterlevelsData, loading:waterlevelsLoading, error:waterlevelsError } = useLoadJSON<WaterLevel[]>(`${filePrefix}_waterlevels.json`)
-  const { data:myDataFiles, loading: dataFilesLoading, error: dataFilesError } = useLoadJSON<string[]>(`input_files.json`)
-  console.log({myDataFiles})
+  const { data:wellsData, loading:wellsLoading, error:wellsError } = useLoadJSON<Well[]>(`./data/${filePrefix}_wells.json`)
+  const { data:elevationsData, loading:elevationsLoading, error:elevationsError } = useLoadJSON<Elevation[]>(`./data/${filePrefix}_elevations.json`)
+  const { data:waterlevelsData, loading:waterlevelsLoading, error:waterlevelsError } = useLoadJSON<WaterLevel[]>(`./data/${filePrefix}_waterlevels.json`)
+  
+  useEffect(() => {
+    if (!running) return
+
+    const interval = setInterval(() => {
+      setWaterlevelIndex(prev => {
+        if (prev >= maxIndexRef.current) {
+          setRunning(false)
+          return prev
+        }
+        return prev + 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [running]);
 
   useEffect(() => {
     if (!waterlevelsData) {
       // console.log('waterlevels data not yet loaded')
-      return;
+      return
     }
+    maxIndexRef.current = waterlevelsData.length - 1
+
     if (!wellsData) {
       // console.log('wells data not yet loaded')
-      return;
+      return
     }
     if (!elevationsData) {
       // console.log('elevations data not yet loaded')
-      return;
+      return
     }
     const waterlevelData = waterlevelsData[waterlevelIndex]
-
+    // console.log('starting Plot generation with waterlevel index', waterlevelIndex, waterlevelData)
     const plot = Plot.plot({
       width: 1500,
       marginLeft: 50,
@@ -124,7 +99,8 @@ function App() {
         Plot.rect(wellsData, {
           x1: ((d:Well) => d.x - 0.5),
           x2: (d:Well) => d.x + 0.5,
-          y1: (d:Well) => d.min_z,
+          // y1: (d:Well) => d.min_z,
+          y1: (d:Well) => d.sensor,
           y2: (d:Well) => d.max_z,
           stroke: "black",
           fillOpacity: 0.1,
@@ -147,42 +123,41 @@ function App() {
     return () => plot.remove();
   }, [wellsData, elevationsData, waterlevelsData, waterlevelIndex]);
 
-  if (wellsLoading || elevationsLoading || waterlevelsLoading || dataFilesLoading) return <div>Loading data...</div>
-  if (wellsError || elevationsError || waterlevelsError || dataFilesError) return <div>Error loading data</div>
-  if (!(wellsData && elevationsData && waterlevelsData )) return null // no data in files - should not happen
+  if (wellsLoading || elevationsLoading || waterlevelsLoading) return <div>Loading data...</div>
+  if (wellsError || elevationsError || waterlevelsError) return <div>Error loading data</div>
+  if (!(wellsData && elevationsData && waterlevelsData )) return <div>no data</div> // no data in files - should not happen
+  
   
   return (
     <>
-    <div ref={containerRef} />
-
-    {/* <p>Profile: {filePrefix}</p> */}
-    <div>
-      <p>
-        {wellsData.length} wells, {elevationsData.length} survey stations, and {waterlevelsData.length.toLocaleString()} water level measurements ranging from {waterlevelsData[0]?.label} to {waterlevelsData[waterlevelsData.length -1]?.label}
-      </p>
-    </div>
-    <div className='card'>
-      <p>Active Datetime: {waterlevelsData[waterlevelIndex]?.label}</p>
-    </div>
-    <div className="card">
-      {/* <button onClick={decrementWaterlevelKey}>Previous</button>
-      <button onClick={incrementWaterlevelKey}>Next</button> */}
-      <button onClick={startAnimation}>Start</button>
-      <button onClick={stopAnimation}>Stop</button>
-      <select value={filePrefix} onChange={(e) => setFilePrefix(e.target.value)}>
-        {myDataFiles?.map((file) => (
-          <option key={file} value={file}>
-            {file}
-          </option>
-        ))}
-      </select>
-    </div>
-    <div style={{marginTop: "20px"}}>
-      <label htmlFor={"price-range"}>Select a time step (0 to {waterlevelsData.length - 1}):</label></div>
-      <input style={{width: "500px"}} onChange={timestepChangeHandler} type="range" id="price-range" name="price-range" min="0" max={waterlevelsData.length-1} value={waterlevelIndex}/>
-    <div>
-    {/* <NavButtonPanel waterlevelIndex={waterlevelIndex} setWaterlevelIndex={setWaterlevelIndex} maxIndex={waterlevelsData.length - 1} /> */}
-    </div>
+      <div ref={containerRef} />
+      <div>
+        <p>
+          {wellsData.length} wells, {elevationsData.length} survey stations, and {waterlevelsData.length.toLocaleString()} water level measurements from {waterlevelsData[0]?.label} to {waterlevelsData[waterlevelsData.length -1]?.label}
+        </p>
+      </div>
+      <div className="card">
+        <p>Active Datetime: {waterlevelsData[waterlevelIndex]?.label}</p>
+        <button onClick={() => setRunning(r => !r)}>
+          {running ? "Stop Animation" : "Start Animation"}
+        </button>
+        <button onClick={() => { setRunning(false); setWaterlevelIndex(0); }}>
+          Reset
+        </button>
+        <select style={{marginLeft: "20px"}} value={filePrefix} onChange={(e) => setFilePrefix(e.target.value)}>
+          {filePrefixes?.map((file) => (
+            <option key={file} value={file}>
+              {file}
+            </option>
+          ))}
+        </select>
+        <div style={{marginTop: "20px"}}>
+          <div>
+            <label htmlFor={"time-range"}>Select a time step (0 to {waterlevelsData.length - 1}):</label>
+          </div>
+          <input style={{width: "500px"}} onChange={timestepChangeHandler} type="range" id="time-range" name="time-range" min="0" max={waterlevelsData.length-1} value={waterlevelIndex}/>
+        </div>
+      </div>
     </>
   )
 }
