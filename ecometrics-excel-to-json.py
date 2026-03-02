@@ -44,14 +44,15 @@ output attribute names shortened to minimize file size:
     ]
 '''
 def write_elevations(df, output_filename):
-    # create a data file of surveyed points along profile
-    elevations = []
-    for station in df.items():
-        elevations.append({"x":station[1]['Station'], "z":station[1]['ground elevation']})
-
+    results = []
+    for col in df.items():
+        # col[0] is column name
+        results.append({
+            'x': col[1]['station'],
+            'z': col[1]['ground elevation']
+        })
     with open(output_filename, "w") as file:
-        json.dump(elevations, file, indent=2)
-
+        json.dump(results, file, indent=2)
 
 
 '''
@@ -97,15 +98,37 @@ e.g.
         }
     ]
 '''
-def write_waterlevels(df, wells, output_filename):
+def write_waterlevels(df, wells, beaverdams, output_filename):
     # because we're not using Pandas to_json methods, explicitly replace the NaN values with null
     # TODO why doesn't this work?
     # df_filled = df.fillna(value=None)
     df_filled = df.replace(np.nan, None)
     results = []
-    # iterate over each timestamp
-    for ts,row in df_filled.iterrows():
-        results.append({ 'label': ts, 'values': format_waterlevel(row, wells) })
+    for row in df_filled.iterrows():
+        dt = row[0]
+        record = {
+            "label": dt,
+            "values": []
+        }
+        # add beaverdams attributes if necessary
+        if not pd.isnull(beaverdams.loc[dt]['mimicry']):
+            record['mimicry'] = beaverdams.loc[dt]['mimicry']
+        if not pd.isnull(beaverdams.loc[dt]['beavers']):
+            record['beavers'] = beaverdams.loc[dt]['beavers']
+
+        for col in row[1].items():
+            station = col[0]
+            waterlevel = col[1]
+            # although waterlevel values usually only appear at wells, they may appear at any station
+            if not pd.isnull(waterlevel):
+                # flag "below sensor" readings
+                if col[1] == "BS":
+                    sensor = wells.loc['sensor elev'][station]
+                    record['values'].append({ "x": station, "z": sensor, "bs": True})
+                else:
+                    record['values'].append({ "x": station, "z": waterlevel})
+        # add record for this timestamp
+        results.append(record)
 
     with open(output_filename, "w") as file:
         json.dump(results, file, indent=2)
@@ -134,18 +157,20 @@ def write_waterlevels(df, wells, output_filename):
         ...
     ]
 '''
-def write_wells(waterlevels, wells, output_filename):
-    # calculate max/min for each well
-    min_values = waterlevels.min()
-    max_values = waterlevels.max()
-    # join all attributes into dataframe and create list of objects
-    wells_data = []
-    df = pd.concat([wells.loc['Station'],min_values, max_values, wells.loc['ground elevation'], wells.loc['sensor elev']], axis=1, keys=['x', 'min_z', 'max_z', 'surface','sensor'])
-    for label, row in df.iterrows():
-        wells_data.append({"id": label, "x": row.iloc[0], "min_z": row.iloc[1], "max_z": row.iloc[2], "surface": row.iloc[3], "sensor": row.iloc[4]})
-
+def write_wells(df, output_filename):
+    results = []
+    for col in df.items():
+        # col[0] is column name
+        results.append({
+            'x': col[1]['station'],
+            'surface': col[1]['ground elevation'],
+            'sensor': col[1]['sensor elev'],
+            'id': col[1]['well id'],
+            'min_z': col[1]['min'],
+            'max_z': col[1]['max']
+        })
     with open(output_filename, "w") as f:
-        json.dump(wells_data, f, indent=2)
+        json.dump(results, f, indent=2)
 
 
 def main(args):
@@ -168,12 +193,14 @@ def main(args):
     for excel_file in files_manifest:
         xl = pd.ExcelFile(os.path.join(input_dir, excel_file))
         # print(f'{excel_file}: {xl.sheet_names}')
+        # workbook basename (w/o path or file extension == worksheet name == basename of output files
         input_files.append(
             {
                 'filename': os.path.join(input_dir, excel_file),
                 'label': excel_file.split('.')[0],
             })
     with open(os.path.join(output_dir, 'input_files.json'), 'w') as file:
+        # TODO simplify now that basename of input file matches that of output file?
         prefixes = [ i['label'].replace(' ','_') for i in input_files]
         json.dump(prefixes, file)
 
@@ -181,8 +208,9 @@ def main(args):
     for file in input_files:
         # Excel file expected to contain a single worksheet named to match file basename. Sheet is organized with one
         # column for each surveyed location (i.e. Station).
-        # First four rows are metadata:
-        #   Station (distance along profile)
+        # First five rows are metadata:
+        #   beavers (activity and mimicry)
+        #   station (distance along profile)
         #   ground elevation
         #   sensor elev (height of sensor w/in well)
         #   well id (string uniquely identifying well along profile)
@@ -190,35 +218,65 @@ def main(args):
 
         try:
             # read worksheet and drop any rows where all fields are null
-            waterlevels = pd.read_excel(file['filename'], sheet_name=file['label'], header=None, index_col=0, na_values=['BS']).dropna(how='all')
+            df = pd.read_excel(file['filename'], sheet_name=file['label'], header=None, index_col=0).dropna(how='all')
+            # remove rows with no timestamp value. Not caught on import due to spurious values in beaverdams columns
+            df = df[df.index.notna()]
 
-            # create dataframe with two rows (Station, ground elevation) and column for each location
-            elevations = waterlevels.iloc[0:2].copy(deep=True)
+            # create new "beaverdams" dataframe with two columns, "mimicry", "beavers", indexed by timestamp
+            beaverdams = df.iloc[5:, [-2, -1]].copy()
+            beaverdams.name = 'beaver dams'
+            beaverdams.columns = ['mimicry', 'beavers']
+            try:
+                beaverdams.index = beaverdams.index.map(lambda x: x.strftime('%Y-%m-%d %H:%M'))
+            except:
+                print(beaverdams.index)
+            # having made a copy, remove the two beaverdams columns from original dataframe
+            df.drop(columns=df.columns[[-2,-1]], inplace=True)
+
+            # series of station values to use as column labels
+            stations = df.iloc[1].copy(deep=True)
+
+            # create dataframe with two rows (station, ground elevation) and column for each location
+            elevations = df.iloc[1:3].copy(deep=True)
+
+            # create dataframe with four rows (Station, ground elevation, sensor elevation, well_id) and column for each well
+            wells = df.iloc[1:5].copy(deep=True)
             # drop all columns except for those with wells
-            waterlevels.dropna(axis=1, subset=['well id'], inplace=True)
+            wells.dropna(axis=1, subset=['well id'], inplace=True)
+            well_ids = wells.loc['well id']
+            # label columns by station rather than well id to match elevations, waterlevels
+            wells.columns = wells.loc['station'].tolist()
 
-            # use for column labels on wells, waterlevels
-            well_ids = waterlevels.loc['well id']
-
-            # create dataframe with three rows (Station, ground elevation, sensor elevation) and column for each well
-            wells = waterlevels.iloc[0:3].copy(deep=True)
-            wells.columns = well_ids.tolist()
-
-            # trim unneeded rows of original dataframe to just waterlevel data: one column per well, one row per timestamp
-            waterlevels.drop(['Station','ground elevation','sensor elev','well id'], axis=0, inplace=True)
-            waterlevels.index.name = 'timestamp'
-            waterlevels.columns = well_ids.tolist()
+            # create waterlevel dataframe
+            # drop "header" rows
+            waterlevels = df.drop(['beaver dams','station','ground elevation','sensor elev','well id'], axis=0)
             # convert timestamp to string with hour precision
             waterlevels.index = waterlevels.index.map(lambda x: x.strftime('%Y-%m-%d %H:%M'))
+            waterlevels.columns = stations.tolist()
 
-            if waterlevels.index.has_duplicates:
-                msg = f'file {file["filename"]} contains duplicate timestamps'
-                logging.error(msg)
-                raise Exception(msg)
+            # calc min/max for each well and add to dataframe. exclude rows marked as "below sensor"
+            well_values = waterlevels[wells.loc['station'].tolist()]
+            min_values = well_values[waterlevels != 'BS'].min(skipna=True)
+            min_values.name = 'min'
+            max_values = well_values[waterlevels != 'BS'].max(skipna=True)
+            max_values.name = 'max'
+            wells.loc['min'] = min_values
+            wells.loc['max'] = max_values
+
+            # drop columns which contain no waterlevel measurements. Some columns w/o wells may contain values
+            waterlevels.dropna(axis=1, how='all', inplace=True)
+
+            # TODO check for duplicate timestamps
+            # if waterlevels.index.has_duplicates:
+            #     msg = f'file {file["filename"]} contains duplicate timestamps'
+            #     logging.error(msg)
+            #     raise Exception(msg)
             print(f'\t...{len(waterlevels)} waterlevel records')
-            print(f'\t...{len(elevations.loc['Station'])} survey stations along profile')
-            print(f'\t...{len(wells.columns)} well records')
+            print(f'\t...{len(elevations.loc['station'])} survey stations along profile')
+            print(f'\t...{len(wells.loc['well id'])} well records')
+
         except Exception as e:
+            logging.error(e)
             logging.error(f'file {file["filename"]} is not formatted correctly. skipping...')
             continue
 
@@ -226,8 +284,8 @@ def main(args):
         wells_output_filename = os.path.join(output_dir, f'{file['label']}_wells.json')
         elevations_output_filename = os.path.join(output_dir, f'{file['label']}_elevations.json')
 
-        write_waterlevels(df=waterlevels, wells=wells, output_filename=waterlevels_output_filename)
-        write_wells(waterlevels=waterlevels, wells=wells, output_filename=wells_output_filename)
+        write_waterlevels(df=waterlevels, wells=wells, beaverdams=beaverdams, output_filename=waterlevels_output_filename)
+        write_wells(df=wells, output_filename=wells_output_filename)
         write_elevations(df=elevations, output_filename=elevations_output_filename)
 
 if __name__ == "__main__":
