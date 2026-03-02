@@ -23,13 +23,16 @@ interface Elevation {
 }
 
 interface WaterLevelEntry {
-  id: string
+  id?: string
+  bs?: boolean
   x: number
   z: number
 }
 
 interface WaterLevel {
   label: string
+  beavers?: number
+  mimicry?: number
   values: WaterLevelEntry[]
 }
 
@@ -51,7 +54,7 @@ function App() {
   const { data:wellsData, loading:wellsLoading, error:wellsError } = useLoadJSON<Well[]>(`./data/${filePrefix}_wells.json`)
   const { data:elevationsData, loading:elevationsLoading, error:elevationsError } = useLoadJSON<Elevation[]>(`./data/${filePrefix}_elevations.json`)
   const { data:waterlevelsData, loading:waterlevelsLoading, error:waterlevelsError } = useLoadJSON<WaterLevel[]>(`./data/${filePrefix}_waterlevels.json`)
-  
+
   useEffect(() => {
     if (!running) return
 
@@ -83,19 +86,73 @@ function App() {
       // console.log('elevations data not yet loaded')
       return
     }
+
+    function getDotColor(entry: WaterLevelEntry): string {
+      if (entry.bs) {
+        return "red"
+      }
+      return "blue"
+    }
+
+    function formatPopup(entry: WaterLevelEntry): string {
+      // should not happen since we check for wellsData before, but typescript doesn't know that
+      if (!wellsData) {
+        // return `water level: ${entry.z} m`
+        console.log('Error: wellsData not loaded when formatting popup')
+        return ""
+      }
+
+      // get the well associated with this water level entry
+      const well = wellsData.find(well => well.x === entry.x)
+      // possible to have a water level measurement that is not associated with a well
+      if (!well) {
+        return `water level: ${entry.z} m`
+      }
+      const strings = []
+      strings.push(`well ${well.id}`)
+      strings.push(`sensor ${(well.surface - well.sensor).toFixed(1)} m below surface`)
+      // although the popup should not be accessible with missing data since 
+      // there is no dot to hover over, formatPopup() is still called
+      const waterLevelString = entry.z ? `${(entry.z).toLocaleString('en',{maximumFractionDigits:1})} m` : "no reading"
+      strings.push (entry.bs ? 'Below Sensor': `water level: ${waterLevelString}`)
+      return strings.join('\n')
+    }
     const waterlevelData = waterlevelsData[waterlevelIndex]
+    // const belowSensorData = {...waterlevelData}
+    // belowSensorData.values = belowSensorData.values.filter(well => well.bs === true)
+
     // console.log('starting Plot generation with waterlevel index', waterlevelIndex, waterlevelData)
     const plot = Plot.plot({
       width: 1500,
-      marginLeft: 50,
+      marginLeft: 60,
+      style: {fontSize: "14px"},
+      marginBottom: 50,
       grid: true,
       color: {
         legend: true,
       },
       marks: [
-        Plot.line(elevationsData, {x: "x", y: "z", stroke: "red"}),
-        Plot.line(waterlevelData?.values, {x: "x", y: "z", stroke: "green"}),
-        Plot.dot(waterlevelData?.values, { x: "x", y: "z", r: 6, fill: "green", stroke: "green"}),
+        Plot.axisY({label: "Elevation (m)"}),
+        Plot.axisX({label: "Distance along profile (m)", labelOffset: 40}),
+        Plot.line(
+          elevationsData, {
+            x: "x", 
+            y: "z",
+            title: (d) => `elev: ${d.z} m`, 
+            stroke: "black", 
+            tip: false
+          }),
+        Plot.line(waterlevelData?.values, {x: "x", y: "z", stroke: "blue"}),
+        Plot.dot(waterlevelData?.values, { 
+          x: "x", 
+          y: "z", 
+          r: 6, 
+          fill: (d) => getDotColor(d),
+          title: (d) => formatPopup(d),
+          stroke: "blue",
+          tip: true
+        }),
+        // Plot.dot(belowSensorData?.values, { x: "x", y: "z", r: 6, fill: "red", stroke: "red"}),
         Plot.rect(wellsData, {
           x1: ((d:Well) => d.x - 0.5),
           x2: (d:Well) => d.x + 0.5,
@@ -104,7 +161,9 @@ function App() {
           y2: (d:Well) => d.max_z,
           stroke: "black",
           fillOpacity: 0.1,
-          fill: "blue"
+          fill: "blue",
+          // tip: true,
+          // title: (d:Well) => `Well ${d.id}\nSensor: ${d.sensor} m\nMin: ${d.min_z} m\nMax: ${d.max_z} m`
         })
       ]
     })
@@ -127,7 +186,25 @@ function App() {
   if (wellsError || elevationsError || waterlevelsError) return <div>Error loading data</div>
   if (!(wellsData && elevationsData && waterlevelsData )) return <div>no data</div> // no data in files - should not happen
   
+  const currentData = waterlevelsData[waterlevelIndex]
+
   
+  const labels = [
+    'none',
+    'low',
+    'moderate',
+    'high'
+  ]
+
+  function getLabel(value: number|undefined): string {
+    if (value === undefined) {  return "none" }
+    if (value >= 0 && value < labels.length) {
+      return labels[value]
+    }
+    console.log('Error: value out of range for labels', value)
+    return "ERROR"
+  }
+
   return (
     <>
       <div ref={containerRef} />
@@ -135,6 +212,23 @@ function App() {
         <p>
           {wellsData.length} wells, {elevationsData.length} survey stations, and {waterlevelsData.length.toLocaleString()} water level measurements from {waterlevelsData[0]?.label} to {waterlevelsData[waterlevelsData.length -1]?.label}
         </p>
+        <p style={{textAlign:'left'}}>
+          <span style={{fontWeight: "bold"}}>Beaver Dam Intensity</span><br/>
+          Beavers: {getLabel(currentData?.beavers)}<br/>
+          Mimicry: {getLabel(currentData?.mimicry)}
+        </p>
+        {/* <table style={{border: "1px solid black", width: "200px", textAlign: "center", borderCollapse: "collapse"}}>
+          <caption style={{fontVariant: "small-caps"}}>Intensity of Beaver Dams</caption>
+          <thead>
+            <th style={{border: "1px solid black"}}>Beavers</th><th style={{border: "1px solid black"}}>Mimicry</th>
+          </thead>
+          <tbody >
+            <tr >
+              <td style={{border: "1px solid black"}}>{getLabel(currentData?.beavers)}</td>
+              <td style={{border: "1px solid black"}}>{getLabel(currentData?.mimicry)}</td>
+            </tr>
+            </tbody>
+        </table> */}
       </div>
       <div className="card">
         <p>Active Datetime: {waterlevelsData[waterlevelIndex]?.label}</p>
@@ -144,7 +238,7 @@ function App() {
         <button onClick={() => { setRunning(false); setWaterlevelIndex(0); }}>
           Reset
         </button>
-        <select style={{marginLeft: "20px"}} value={filePrefix} onChange={(e) => setFilePrefix(e.target.value)}>
+        <select style={{marginLeft: "20px"}} value={filePrefix} onChange={(e) => { setFilePrefix(e.target.value); setWaterlevelIndex(0); setRunning(false); }}>
           {filePrefixes?.map((file) => (
             <option key={file} value={file}>
               {file}
