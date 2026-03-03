@@ -106,20 +106,51 @@ function App() {
       const well = wellsData.find(well => well.x === entry.x)
       // possible to have a water level measurement that is not associated with a well
       if (!well) {
-        return `water level: ${entry.z} m`
+        return `water level: ${entry.z} ft`
       }
       const strings = []
       strings.push(`well ${well.id}`)
-      strings.push(`sensor ${(well.surface - well.sensor).toFixed(1)} m below surface`)
+      strings.push(`sensor ${(well.surface - well.sensor).toFixed(1)} ft below surface`)
       // although the popup should not be accessible with missing data since 
       // there is no dot to hover over, formatPopup() is still called
-      const waterLevelString = entry.z ? `${(entry.z).toLocaleString('en',{maximumFractionDigits:1})} m` : "no reading"
+      const waterLevelString = entry.z ? `${(entry.z).toLocaleString('en',{maximumFractionDigits:1})} ft` : "no reading"
       strings.push (entry.bs ? 'Below Sensor': `water level: ${waterLevelString}`)
       return strings.join('\n')
     }
     const waterlevelData = waterlevelsData[waterlevelIndex]
     // const belowSensorData = {...waterlevelData}
     // belowSensorData.values = belowSensorData.values.filter(well => well.bs === true)
+    const plot1Data = [
+      {name: "Beavers", value: waterlevelData?.beavers ? waterlevelData?.beavers : 0},
+      {name: "Mimicry", value: waterlevelData?.mimicry ? waterlevelData.mimicry : 0}
+    ]
+    function getBeaverLabel(value: number): string {
+      const labels = ['','low intensity', 'moderate intensity', 'high intensity']
+      return labels[value]
+    }
+    const plot1 = Plot.frame().plot({
+      width: 400,
+      y: {label: null},
+      x: {axis: null},
+      marginLeft: 90,
+      
+      marks:[
+        Plot.ruleX([3], {stroke:[]}),
+        Plot.barX(plot1Data, { x: "value", y: "name"}),
+        Plot.text(plot1Data, {
+          text: d => getBeaverLabel(d.value),
+            y: "name",
+            x: "value",
+            textAnchor: "end",
+            dx: -3,
+            fill: "white"
+        })
+      ]
+    })
+
+
+
+
 
     // console.log('starting Plot generation with waterlevel index', waterlevelIndex, waterlevelData)
     const plot = Plot.plot({
@@ -132,13 +163,13 @@ function App() {
         legend: true,
       },
       marks: [
-        Plot.axisY({label: "Elevation (m)"}),
-        Plot.axisX({label: "Distance along profile (m)", labelOffset: 40}),
+        Plot.axisY({label: "Elevation (ft)"}),
+        Plot.axisX({label: "Distance along profile (ft)", labelOffset: 40}),
         Plot.line(
           elevationsData, {
             x: "x", 
             y: "z",
-            title: (d) => `elev: ${d.z} m`, 
+            title: (d) => `elev: ${d.z} ft`, 
             stroke: "black", 
             tip: false
           }),
@@ -177,9 +208,12 @@ function App() {
     //       {x: "x", y: "z", stroke: "green", fill: "green", r: 4, title: d => `Well ${d.id}\nWaterlevel: ${d.z} m`})
     //     ]
     // });
-    containerRef?.current?.append(plot);
+    containerRef?.current?.append(plot1,plot);
 
-    return () => plot.remove();
+    return () => {
+      plot.remove()
+      plot1.remove()
+    }
   }, [wellsData, elevationsData, waterlevelsData, waterlevelIndex]);
 
   if (wellsLoading || elevationsLoading || waterlevelsLoading) return <div>Loading data...</div>
@@ -212,11 +246,11 @@ function App() {
         <p>
           {wellsData.length} wells, {elevationsData.length} survey stations, and {waterlevelsData.length.toLocaleString()} water level measurements from {waterlevelsData[0]?.label} to {waterlevelsData[waterlevelsData.length -1]?.label}
         </p>
-        <p style={{textAlign:'left'}}>
+        {/* <p style={{textAlign:'left'}}>
           <span style={{fontWeight: "bold"}}>Beaver Dam Intensity</span><br/>
           Beavers: {getLabel(currentData?.beavers)}<br/>
           Mimicry: {getLabel(currentData?.mimicry)}
-        </p>
+        </p> */}
         {/* <table style={{border: "1px solid black", width: "200px", textAlign: "center", borderCollapse: "collapse"}}>
           <caption style={{fontVariant: "small-caps"}}>Intensity of Beaver Dams</caption>
           <thead>

@@ -31,8 +31,8 @@ suitable for use with D3 charts.
 WARNING: code is tightly coupled to Excel spreadsheet format
 
 output attribute names shortened to minimize file size:
-    x: distance along profile
-    z: water level in meters
+    x: distance along profile in feet
+    z: water level in feet
 
  e.g.
     [
