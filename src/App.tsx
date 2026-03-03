@@ -220,24 +220,24 @@ function App() {
   if (wellsError || elevationsError || waterlevelsError) return <div>Error loading data</div>
   if (!(wellsData && elevationsData && waterlevelsData )) return <div>no data</div> // no data in files - should not happen
   
-  const currentData = waterlevelsData[waterlevelIndex]
+  // const currentData = waterlevelsData[waterlevelIndex]
 
   
-  const labels = [
-    'none',
-    'low',
-    'moderate',
-    'high'
-  ]
+  // const labels = [
+  //   'none',
+  //   'low',
+  //   'moderate',
+  //   'high'
+  // ]
 
-  function getLabel(value: number|undefined): string {
-    if (value === undefined) {  return "none" }
-    if (value >= 0 && value < labels.length) {
-      return labels[value]
-    }
-    console.log('Error: value out of range for labels', value)
-    return "ERROR"
-  }
+  // function getLabel(value: number|undefined): string {
+  //   if (value === undefined) {  return "none" }
+  //   if (value >= 0 && value < labels.length) {
+  //     return labels[value]
+  //   }
+  //   console.log('Error: value out of range for labels', value)
+  //   return "ERROR"
+  // }
 
   return (
     <>
