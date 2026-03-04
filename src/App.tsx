@@ -188,7 +188,6 @@ function App() {
           stroke: "blue",
           tip: true
         }),
-        // Plot.dot(belowSensorData?.values, { x: "x", y: "z", r: 6, fill: "red", stroke: "red"}),
         Plot.rect(wellsData, {
           x1: ((d:Well) => d.x - 0.5),
           x2: (d:Well) => d.x + 0.5,
