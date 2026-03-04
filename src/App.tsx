@@ -117,17 +117,25 @@ function App() {
       strings.push (entry.bs ? 'Below Sensor': `water level: ${waterLevelString}`)
       return strings.join('\n')
     }
+    
+    // get data for this timestep
     const waterlevelData = waterlevelsData[waterlevelIndex]
-    // const belowSensorData = {...waterlevelData}
-    // belowSensorData.values = belowSensorData.values.filter(well => well.bs === true)
+    
+    const plotCaption = 
+      `${wellsData.length} wells, ${elevationsData.length} survey stations, and ${waterlevelsData.length.toLocaleString()} water level measurements.
+      Data from ${waterlevelsData[0]?.label.split(' ')[0]} to ${waterlevelsData[waterlevelsData.length -1]?.label.split(' ')[0]}.` 
+
+    // data for the beaver dam intensity plot bar chart
     const plot1Data = [
       {name: "Beavers", value: waterlevelData?.beavers ? waterlevelData?.beavers : 0},
       {name: "Mimicry", value: waterlevelData?.mimicry ? waterlevelData.mimicry : 0}
     ]
+    
     function getBeaverLabel(value: number): string {
       const labels = ['','low intensity', 'moderate intensity', 'high intensity']
       return labels[value]
     }
+    
     const plot1 = Plot.frame().plot({
       width: 400,
       y: {label: null},
@@ -148,12 +156,9 @@ function App() {
       ]
     })
 
-
-
-
-
     // console.log('starting Plot generation with waterlevel index', waterlevelIndex, waterlevelData)
     const plot = Plot.plot({
+      caption: plotCaption,
       width: 1500,
       marginLeft: 60,
       style: {fontSize: "14px"},
@@ -199,80 +204,32 @@ function App() {
       ]
     })
     
-    // const plot = Plot.plot({
-    //   y: {grid: true},
-    //   color: {scheme: "burd"},
-    //   marks: [
-    //     Plot.ruleY([0]),
-    //     Plot.dot(waterlevelData?.values, 
-    //       {x: "x", y: "z", stroke: "green", fill: "green", r: 4, title: d => `Well ${d.id}\nWaterlevel: ${d.z} m`})
-    //     ]
-    // });
     containerRef?.current?.append(plot1,plot);
 
     return () => {
       plot.remove()
       plot1.remove()
     }
-  }, [wellsData, elevationsData, waterlevelsData, waterlevelIndex]);
+  }, [wellsData, elevationsData, waterlevelsData, waterlevelIndex, filePrefix]);
 
   if (wellsLoading || elevationsLoading || waterlevelsLoading) return <div>Loading data...</div>
   if (wellsError || elevationsError || waterlevelsError) return <div>Error loading data</div>
   if (!(wellsData && elevationsData && waterlevelsData )) return <div>no data</div> // no data in files - should not happen
   
-  // const currentData = waterlevelsData[waterlevelIndex]
-
-  
-  // const labels = [
-  //   'none',
-  //   'low',
-  //   'moderate',
-  //   'high'
-  // ]
-
-  // function getLabel(value: number|undefined): string {
-  //   if (value === undefined) {  return "none" }
-  //   if (value >= 0 && value < labels.length) {
-  //     return labels[value]
-  //   }
-  //   console.log('Error: value out of range for labels', value)
-  //   return "ERROR"
-  // }
 
   return (
     <>
+      <h1 style={{fontSize: "24px", fontWeight: "bold", marginBottom: "10px"}}>{filePrefix.replaceAll("_", " ")} Groundwater Level</h1>
       <div ref={containerRef} />
-      <div>
-        <p>
-          {wellsData.length} wells, {elevationsData.length} survey stations, and {waterlevelsData.length.toLocaleString()} water level measurements from {waterlevelsData[0]?.label} to {waterlevelsData[waterlevelsData.length -1]?.label}
-        </p>
-        {/* <p style={{textAlign:'left'}}>
-          <span style={{fontWeight: "bold"}}>Beaver Dam Intensity</span><br/>
-          Beavers: {getLabel(currentData?.beavers)}<br/>
-          Mimicry: {getLabel(currentData?.mimicry)}
-        </p> */}
-        {/* <table style={{border: "1px solid black", width: "200px", textAlign: "center", borderCollapse: "collapse"}}>
-          <caption style={{fontVariant: "small-caps"}}>Intensity of Beaver Dams</caption>
-          <thead>
-            <th style={{border: "1px solid black"}}>Beavers</th><th style={{border: "1px solid black"}}>Mimicry</th>
-          </thead>
-          <tbody >
-            <tr >
-              <td style={{border: "1px solid black"}}>{getLabel(currentData?.beavers)}</td>
-              <td style={{border: "1px solid black"}}>{getLabel(currentData?.mimicry)}</td>
-            </tr>
-            </tbody>
-        </table> */}
-      </div>
-      <div className="card">
-        <p>Active Datetime: {waterlevelsData[waterlevelIndex]?.label}</p>
-        <button onClick={() => setRunning(r => !r)}>
+      <div className="card" style={{backgroundColor: "lightgray", padding: "20px", margin: "20px"}}>
+        <p style={{marginBottom:"5px", fontWeight: "bold"}}>Datetime: {waterlevelsData[waterlevelIndex]?.label}</p>
+        <button style={{backgroundColor: "darkgray"}} onClick={() => setRunning(r => !r)}>
           {running ? "Stop Animation" : "Start Animation"}
         </button>
-        <button onClick={() => { setRunning(false); setWaterlevelIndex(0); }}>
+        <button style={{backgroundColor: "darkgray"}} onClick={() => { setRunning(false); setWaterlevelIndex(0); }}>
           Reset
         </button>
-        <select style={{marginLeft: "20px"}} value={filePrefix} onChange={(e) => { setFilePrefix(e.target.value); setWaterlevelIndex(0); setRunning(false); }}>
+        <select style={{backgroundColor:"darkgray",  padding: "10px", marginLeft: "30px"}} value={filePrefix} onChange={(e) => { setFilePrefix(e.target.value); setWaterlevelIndex(0); setRunning(false); }}>
           {filePrefixes?.map((file) => (
             <option key={file} value={file}>
               {file}
@@ -285,6 +242,9 @@ function App() {
           </div>
           <input style={{width: "500px"}} onChange={timestepChangeHandler} type="range" id="time-range" name="time-range" min="0" max={waterlevelsData.length-1} value={waterlevelIndex}/>
         </div>
+      </div>
+      <div id="footer" style={{backgroundColor:"white", alignContent: "center", padding: "10px", margin: "20px", fontSize: "12px"}}>
+        ©2026 EcoMetrics Colorado | <a href="https://www.ecometricscolorado.org/">www.ecometricscolorado.org</a>
       </div>
     </>
   )
