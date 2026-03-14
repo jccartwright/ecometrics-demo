@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build-amplify": "tsc -b && vite build --base=."
+    "build-amplify": "tsc -b && vite build --base=.",
     "lint": "eslint .",
     "preview": "vite preview"
   },
