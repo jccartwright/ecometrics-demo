@@ -33,7 +33,10 @@ interface WaterLevel {
   label: string
   beavers?: number
   mimicry?: number
-  values: WaterLevelEntry[]
+  measured: WaterLevelEntry[]
+  interpolated: WaterLevelEntry[]
+  surface_water_area?: number
+  unsaturated_area?: number
 }
 
 
@@ -73,7 +76,7 @@ function App() {
 
   useEffect(() => {
     if (!waterlevelsData) {
-      // console.log('waterlevels data not yet loaded')
+      console.log('waterlevels data not yet loaded')
       return
     }
     maxIndexRef.current = waterlevelsData.length - 1
@@ -120,9 +123,10 @@ function App() {
     
     // get data for this timestep
     const waterlevelData = waterlevelsData[waterlevelIndex]
+    console.log({waterlevelData})
     
     const plotCaption = 
-      `${wellsData.length} wells, ${elevationsData.length} survey stations, and ${waterlevelsData.length.toLocaleString()} water level measurements.
+      `${wellsData.length} wells, ${elevationsData.length} survey stations, and ${waterlevelsData.length.toLocaleString()} total water level measurements.
       Data from ${waterlevelsData[0]?.label.split(' ')[0]} to ${waterlevelsData[waterlevelsData.length -1]?.label.split(' ')[0]}.` 
 
     // data for the beaver dam intensity plot bar chart
@@ -178,8 +182,9 @@ function App() {
             stroke: "black", 
             tip: false
           }),
-        Plot.line(waterlevelData?.values, {x: "x", y: "z", stroke: "blue"}),
-        Plot.dot(waterlevelData?.values, { 
+        Plot.line(waterlevelData?.interpolated, {x: "x", y: "z", stroke: "red", strokeDasharray: "4 4"}),
+        Plot.line(waterlevelData?.measured, {x: "x", y: "z", stroke: "mediumblue", strokeWidth: 5}),
+        Plot.dot(waterlevelData?.measured, { 
           x: "x", 
           y: "z", 
           r: 6, 
@@ -209,18 +214,49 @@ function App() {
       plot.remove()
       plot1.remove()
     }
-  }, [wellsData, elevationsData, waterlevelsData, waterlevelIndex, filePrefix]);
+  }, [wellsData, elevationsData, waterlevelsData, waterlevelIndex, filePrefix])
 
   if (wellsLoading || elevationsLoading || waterlevelsLoading) return <div>Loading data...</div>
   if (wellsError || elevationsError || waterlevelsError) return <div>Error loading data</div>
   if (!(wellsData && elevationsData && waterlevelsData )) return <div>no data</div> // no data in files - should not happen
   
+  function formatAreaStats() {
+    if (!(waterlevelsData && waterlevelsData[waterlevelIndex])) {
+      return <p>water level data not available</p>
+    }
+    const waterlevelData = waterlevelsData[waterlevelIndex]
+    if (waterlevelData.surface_water_area === undefined || waterlevelData.unsaturated_area === undefined) {
+      return (
+        <>
+        <p>surfaceWaterArea: N/A</p>
+        <p>unsaturatedArea: N/A</p>
+        </>
+      )
+    }
+    
+    const surfaceWaterArea = waterlevelData.surface_water_area
+    const unsaturatedArea = waterlevelData.unsaturated_area
+    const totalArea = surfaceWaterArea + unsaturatedArea
+
+    const  surfacePct = surfaceWaterArea === 0? 0 : (surfaceWaterArea / totalArea * 100)?.toFixed(2)
+    const unsaturatedPct = unsaturatedArea === 0? 0 : (unsaturatedArea / totalArea * 100)?.toFixed(2)    
+    
+    return (
+      <>
+        <p>surface water area: {surfaceWaterArea} ft² ({surfacePct}%)</p>
+        <p>unsaturated area: {unsaturatedArea} ft² ({unsaturatedPct}%)</p>
+      </>
+    )
+  }
 
   return (
     <>
       <h1 style={{fontSize: "24px", fontWeight: "bold", marginBottom: "10px"}}>{filePrefix.replaceAll("_", " ")} Groundwater Level</h1>
       <div ref={containerRef} />
-      <div className="card" style={{backgroundColor: "lightgray", padding: "20px", margin: "20px"}}>
+      <div className="card" style={{position: "relative", backgroundColor: "lightgray", padding: "20px", margin: "20px"}}>
+        <div style={{position: "absolute", top: "5px", left: "5px", fontWeight: "bold", fontSize: "16px", border: "1px solid #ccc", padding: "10px"}}>
+          {formatAreaStats()}
+        </div>
         <p style={{marginBottom:"5px", fontWeight: "bold"}}>Datetime: {waterlevelsData[waterlevelIndex]?.label}</p>
         <button style={{backgroundColor: "darkgray"}} onClick={() => setRunning(r => !r)}>
           {running ? "Stop Animation" : "Start Animation"}
